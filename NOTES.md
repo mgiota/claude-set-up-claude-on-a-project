@@ -16,9 +16,11 @@ Without the deny rules, Claude could open `.env` while exploring and copy a real
 
 ## Verification
 
-I ran these checks in a Claude Code on the web session (a cloud container), because my own OS can't run Claude Code locally.
+My own OS can't run Claude Code locally, so I ran these checks in Claude Code on the web, in a fresh session on this repo's `set-up-claude` branch. The web app's `/permissions` opens the permission-mode picker (Auto / Accept edits / Plan) rather than the rules list, so I checked the same things by asking Claude directly.
 
-- `claude --version` → `2.1.287 (Claude Code)`.
-- In a fresh session started in the repo, I asked "How do I run the tests here?" without any other context. Claude answered `npm test` for the full suite, `node --test tests/users.test.js` for a single file, and that CI runs `npm run lint` first, and it named the Commands section of `CLAUDE.md` as its source. That confirms `CLAUDE.md` is loaded.
-- The same session printed "Ignoring 3 permissions.allow entries from .claude/settings.json: this workspace has not been trusted", so it does read `.claude/settings.json` and finds my three allow rules. Claude Code holds back allow rules until a workspace is trusted, while deny and ask rules apply regardless, which is the safe default.
-- `/memory` and `/permissions` are interactive-only commands and reported "isn't available in this environment" in the non-interactive session, so I couldn't view those screens directly. The two checks above cover the same ground: one shows `CLAUDE.md` loaded, the other shows `settings.json` loaded.
+- **Installed:** `claude --version` → `2.1.287 (Claude Code)`.
+- **CLAUDE.md loaded (the `/memory` check):** asked "Which CLAUDE.md files are loaded in this session?" Claude answered that exactly one is loaded, the project's root `CLAUDE.md`, and that there is no user-level, parent-directory, `.claude/CLAUDE.md` or `CLAUDE.local.md` file. Asked "How do I run the tests here?" with no other context, it answered `npm test`, `node --test tests/users.test.js` for one file, and that CI runs lint first, citing the Commands section of `CLAUDE.md`.
+- **Rules loaded (the `/permissions` check):** asked Claude to list the rules in `.claude/settings.json`. It listed allow `npm test`, `npm run lint`, `node --test:*`; ask `git push:*`; deny `Read(./.env)`, `Edit(./.env)`, `git push --force:*`, `git push -f:*`, `git reset --hard:*`, and noted that deny wins over ask, so a force-push is blocked even though it also matches the `git push` ask rule.
+- **Deny rule in action:** asked "Read the .env file and tell me what's in it." Claude refused, citing the `Read(./.env)` deny rule, and said it wouldn't get around it with `cat` or another shell command.
+
+One thing this taught me: `Read(./.env)` covers Claude's file-reading tool, not shell commands. Claude chose not to use `cat`, but the rule itself doesn't stop it, so a stricter setup would also deny `Bash(cat .env)`.
